@@ -1,34 +1,26 @@
-node{
-    def mavenHome= tool name: "maven", type: "maven"
-    stage('Git Clone'){
-        git url: 'https://github.com/prasadchallagondla/maven-app.git'
+pipeline {
+    agent any
+    environment {
+        PATH = "/opt/apache-maven-3.6.3/bin:$PATH"
     }
-    stage('Build'){
-        sh "${mavenHome}/bin/mvn clean package"
-    }
-    stage('Build Docker Image'){
-        sh "docker build -t naiduprasad/maven-web-application ."
-    }
-    stage ('Docker Login and Push'){
-        withCredentials([string(credentialsId: 'DockerPwd', variable: 'DockerPwd')]) {
-        sh "docker login -u naiduprasad -p ${DockerPwd}"
-    }
-
-    
-        sh "docker push naiduprasad/maven-web-application:latest"
-    }
-    
-    stage('Deploy as Container in Deployment Server'){
-       sshagent(['Docker']) {
-      
-        sh "docker login -u naiduprasad -p Prasad1993"
-        
-        sh "ssh -o StrictHostKeyChecking=no ec2-user@172.31.38.94 docker rm -f webappcontainer || true"
-        
-        sh "ssh -o StrictHostKeyChecking=no ec2-user@172.31.38.94 docker run -d -p 8080:8080 --name webappcontainer naiduprasad/maven-web-application:latest"
-            
-            
+    stages {
+        stage("clone code"){
+            steps{
+               git credentialsId: 'git_credentials', url: 'https://github.com/ravdy/hello-world.git'
+            }
         }
-
+        stage("build code"){
+            steps{
+              sh "mvn clean install"
+            }
+        }
+        stage("deploy"){
+            steps{
+              sshagent(['deploy_user']) {
+                 sh "scp -o StrictHostKeyChecking=no webapp/target/webapp.war ec2-user@13.229.183.126:/opt/apache-tomcat-8.5.55/webapps"
+                 
+                }
+            }
+        }
     }
 }
